@@ -4,7 +4,7 @@ Repositório de **conteúdo de design** gerido por pessoas não técnicas atrav�
 
 Não há aplicação nem framework: só o Tina, os conteúdos e o script `scripts/gerar.mjs` (com a página inicial em `scripts/pagina-inicial.mjs`).
 
-**Estado (2026-10-29):** o projeto está em produção. O repositório público é `ProjectsAV/AMEDAS` (o Pages fica em `https://projectsav.github.io/AMEDAS/`) e o projeto TinaCloud chama-se `AMEDAS`. Os secrets `TINA_CLIENT_ID` e `TINA_TOKEN` estão definidos, o `pages.yml` corre com sucesso e quem edita já grava pelo painel publicado (os commits *TinaCMS content update* / *Update from TinaCMS* vêm daí). Antes de trabalhar em local, faz `git pull`, porque o painel faz commits diretamente no `main`.
+**Estado (2026-11-11):** o projeto está em produção. O repositório público é `Arva-Vare/AMEDAS` (o Pages fica em `https://arva-vare.github.io/AMEDAS/`). Até novembro de 2026 esteve na conta `ProjectsAV` (`https://projectsav.github.io/AMEDAS/`, que deixou de funcionar); ver [ponto 6](#6-basepath-imagens-e-urls). O projeto TinaCloud chama-se `AMEDAS` e configura-se em https://app.tina.io/ (repositório, Site URLs, tokens). Os secrets `TINA_CLIENT_ID` e `TINA_TOKEN` estão definidos, o `pages.yml` corre com sucesso e quem edita já grava pelo painel publicado (os commits *TinaCMS content update* / *Update from TinaCMS* vêm daí). Antes de trabalhar em local, faz `git pull`, porque o painel faz commits diretamente no `main`.
 
 ## Fluxo de dados
 
@@ -18,6 +18,7 @@ conteudo/<coleção>/*.json      ← fonte de verdade do conteúdo
 public/<coleção>/<coleção>.css  + cópia dos JSON   (gerado, ignorado no git)
 public/tag/<etiqueta>.<ext>     ← cópia do ficheiro do Media Manager escolhido em cada etiqueta
 public/index.html               ← página inicial com os links de tudo
+public/avisos.json              ← avisos que não param o deploy (o painel mostra-os ao abrir)
    │  GitHub Actions → GitHub Pages
    ▼
 https://<owner>.github.io/AMEDAS/                        (página inicial)
@@ -34,23 +35,24 @@ libs React (outros repositórios): var(--color--primary), var(--main-btn-radius)
 
 | Caminho | Papel |
 |---|---|
-| `tina/config.ts` | Entrada do Tina: lista de coleções, `basePath`, media, credenciais (vindas do ambiente) e o `cmsCallback`, que regista as páginas do guia. |
+| `tina/config.ts` | Entrada do Tina: lista de coleções, `basePath`, media, credenciais (vindas do ambiente) e o `cmsCallback`, que regista as páginas do guia e chama `avisarAoAbrir` (`tina/avisos.ts`). |
 | `tina/colecoes/*.ts` | Uma coleção por ficheiro. Definem a pasta, o formato, as permissões (`allowedActions`) e os templates ou campos. |
 | `tina/templates/*.ts` | Templates: os "tipos de documento" dentro de uma coleção. Cada JSON indica o seu em `_template`. |
 | `tina/campos.ts` | Funções partilhadas que criam campos: `px`, `rgba`, `claroEscuro`, `tamanhos`, `descricao`, `slug`, `nomeUnico`, `nomeFicheiro`. Os campos novos devem usar estas funções. Tem também a constante `PAGES` (URL do Pages), usada pelo guia e pelo link das etiquetas. |
 | `tina/componentes/corRgba.ts` | Componentes React próprios para cores rgba: `CorRgba` e `CorHerdavel`, para as cores que se podem herdar da base (ver [Cores](#cores-e-tema-escuro)). |
-| `tina/guia.ts` | Páginas do guia no menu do painel (ver [Guia no painel](#guia-no-painel)). |
-| `tina/componentes/linkEtiqueta.ts` | Componente `LinkEtiqueta`, que mostra o link publicado de cada etiqueta, e as funções `extensao` e `nomeDoFicheiro` (ver [Etiquetas](#etiquetas)). |
+| `tina/guia.ts` | Páginas do guia no menu do painel (ver [Guia no painel](#guia-no-painel)). Exporta também `lerPublicado`, usada pelo `avisos.ts`. |
+| `tina/avisos.ts` | `avisarAoAbrir(cms)`: alertas ao abrir o painel com os avisos da última publicação e quando a última publicação falhou (ver [Alertas ao abrir o painel](#alertas-ao-abrir-o-painel)). |
+| `tina/componentes/linkEtiqueta.ts` | Componente `LinkEtiqueta`, que mostra o link publicado de cada etiqueta e avisa quando o ficheiro já não está no Media Manager, e as funções `extensao`, `nomeDoFicheiro` e `caminhoNoMedia` (ver [Etiquetas](#etiquetas)). |
 | `tina/componentes/blocos.ts` | Componente React próprio para o `contentBlock` dos Elementos: uma secção por idioma, com o idioma em cima, os blocos (tipo e conteúdo) e os grupos de blocos à esquerda e um cartão de pré-visualização à direita (ver [Elementos](#elementos-e-idiomas)). |
 | `README.md` | Apresentação do projeto para pessoas (o que publica, como se usa, comandos) e, na secção *Desenvolvimento com IA*, o ciclo de trabalho do Claude descrito no `CLAUDE.md`. Atualiza-o quando mudar o que é publicado ou esse ciclo. |
 | `CLAUDE.md` | Regras de trabalho do Claude: ler este `AGENTS.md` antes de alterar e avisar que o leu; mantê-lo igual ao código depois de cada alteração e avisar quando o altera. Os factos sobre o projeto ficam aqui, não lá. |
 | `tina/tina-lock.json` | Schema compilado. É **gerado** pelo `tinacms dev` (o `build:local` não o atualiza), mas **tem de ir para o git**, porque o TinaCloud lê o schema a partir dele. |
 | `tina/__generated__/` | Cliente e tipos gerados. Ignorado no git; nunca se edita à mão. |
 | `conteudo/` | Os JSON editados pelo Tina. |
-| `scripts/gerar.mjs` | Converte JSON em CSS e copia os JSON para `public/`. É a única lógica de negócio do repositório. |
+| `scripts/gerar.mjs` | Converte JSON em CSS e copia os JSON para `public/`. É a única lógica de negócio do repositório. Os problemas que não devem parar o deploy passam por `avisar(coleção, mensagem)` e vão para `public/avisos.json`. |
 | `scripts/pagina-inicial.mjs` | HTML da página inicial (ver [Página inicial](#página-inicial)). Chamada no fim do `gerar.mjs`. |
 | `public/uploads/` | Imagens carregadas pelo Media Manager. Ficam no git. |
-| `public/admin/`, `public/<coleção>/`, `public/index.html` | Gerados (o painel, o CSS, os JSON, as etiquetas e a página inicial). Ignorados no git. |
+| `public/admin/`, `public/<coleção>/`, `public/index.html`, `public/avisos.json` | Gerados (o painel, o CSS, os JSON, as etiquetas, a página inicial e os avisos). Ignorados no git. |
 | `.github/workflows/pages.yml` | Build e deploy para o GitHub Pages, com Node 24. |
 
 ## Coleções
@@ -98,7 +100,7 @@ O `text.json` (template `text`) guarda tamanhos em px:
 
 ### Elementos e idiomas
 
-Cada ficheiro em `conteudo/element/` tem uma lista de elementos (publicado em `https://projectsav.github.io/AMEDAS/element/<ficheiro>.json`). Em TypeScript:
+Cada ficheiro em `conteudo/element/` tem uma lista de elementos (publicado em `https://arva-vare.github.io/AMEDAS/element/<ficheiro>.json`). Em TypeScript:
 ```ts
 type TextContent = { type: 'text' | 'title' | 'eyebrow' | 'subtitle' | 'item' | 'quote'; content?: string }
 type GroupContent = { type: 'group'; content?: string; contents: TextContent[] }
@@ -162,16 +164,23 @@ Uma etiqueta é um nome fixo que aponta para um ficheiro do Media Manager, para 
   - `name`: `nomeUnico` (obrigatório e único pelo slug).
   - `file`: o caminho que o Tina grava, `/uploads/<ficheiro>` (o TinaCloud converte o URL `assets.tina.io` que o painel mostra para este caminho ao gravar). O `validate` exige ficheiro com extensão.
   - `link`: campo só de leitura (componente `LinkEtiqueta`) que mostra `PAGES/tag/<slug(name)>.<extensão>` com um botão Copiar, atualizado enquanto se escreve (subscreve o formulário). Não é gravado.
+    - Por baixo, mostra um **aviso vermelho quando o ficheiro já não está no Media Manager**. Sempre que o `file` muda, procura-o na pasta dele com `cms.media.list` (TinaCloud em produção, disco em local; o caminho sai de `caminhoNoMedia`). Se houver um ficheiro com o mesmo nome a menos de maiúsculas, sugere-o.
+    - Se a procura falhar (rede, sessão), não avisa. O aviso não bloqueia a gravação.
   - `description`: só para quem edita; não é publicada.
   - Na lista do painel, cada item aparece como `<nome> → <ficheiro>`.
-- **No gerador** (bloco das etiquetas no fim do `gerar.mjs`): apaga e recria `public/tag/`, copia cada ficheiro para `public/tag/<slug(name)>.<extensão em minúsculas>` e escreve `public/tag/index.json`, uma lista `[{ name, file, source }]` (`file` = nome publicado em `tag/`, `source` = caminho em `/uploads/`). Lança erro (e o deploy para) com nome vazio ou repetido, ficheiro em falta, sem extensão, fora de `public/uploads/` ou que não existe.
-- **O link** é `https://projectsav.github.io/AMEDAS/tag/<slug(name)>.<extensão>`. A extensão faz parte do link para o Pages servir o `Content-Type` certo (um ficheiro sem extensão sai como `application/octet-stream`, e os browsers não mostram SVG assim). Por isso, trocar o ficheiro por outro com outra extensão muda o link.
+- **No gerador** (bloco das etiquetas no fim do `gerar.mjs`): apaga e recria `public/tag/`, copia cada ficheiro para `public/tag/<slug(name)>.<extensão em minúsculas>` e escreve `public/tag/index.json`, uma lista `[{ name, file, source, outdated? }]` (`file` = nome publicado em `tag/`, `source` = caminho em `/uploads/`). Lança erro (e o deploy para) com nome vazio ou repetido, sem ficheiro, sem extensão ou fora de `public/uploads/`.
+  - **Ficheiro que não existe** (apagado do Media Manager ou com outro nome): **não** para o deploy. A função `versaoPublicada` lê o `tag/index.json` do Pages (em `BASE_URL`), procura a etiqueta pelo slug e volta a publicar o ficheiro que lá está, com o mesmo nome. No `index.json`, a etiqueta fica com o `source` antigo e `outdated: true`.
+  - Se não houver versão publicada (etiqueta nova, falha de rede, ou em local, sem `BASE_URL`), a etiqueta fica de fora e o link dá 404.
+  - Nos dois casos, `avisar()` deixa um aviso (ver [Alertas ao abrir o painel](#alertas-ao-abrir-o-painel)).
+  - **A cópia só existe no Pages**, nunca no git: vai-se buscar outra vez em cada deploy, enquanto a etiqueta estiver partida. Quando a etiqueta apontar para um ficheiro que existe, é substituída; se a extensão mudar ou a etiqueta for apagada, desaparece com o resto de `public/tag/`.
+- **O link** é `https://arva-vare.github.io/AMEDAS/tag/<slug(name)>.<extensão>`. A extensão faz parte do link para o Pages servir o `Content-Type` certo (um ficheiro sem extensão sai como `application/octet-stream`, e os browsers não mostram SVG assim). Por isso, trocar o ficheiro por outro com outra extensão muda o link.
 
 ### Página inicial
 
-O `gerar.mjs` escreve `public/index.html`, a página de `https://projectsav.github.io/AMEDAS/` (sem ela, o Pages dá 404). Tem:
+O `gerar.mjs` escreve `public/index.html`, a página de `https://arva-vare.github.io/AMEDAS/` (sem ela, o Pages dá 404). Tem:
 - **um botão "Abrir o painel"**, que aponta para `admin/`;
-- **uma secção por coleção**, montada a partir do que o gerador publicou nessa corrida. As coleções com CSS listam primeiro o CSS e depois cada JSON; as coleções `soJson` listam o `index.json` e cada ficheiro; as Etiquetas listam o `tag/index.json` e cada etiqueta (pelo `name`). Cada linha tem o URL, "Abrir" e "Copiar link".
+- **uma secção por coleção**, montada a partir do que o gerador publicou nessa corrida. As coleções com CSS listam primeiro o CSS e depois cada JSON; as coleções `soJson` listam o `index.json` e cada ficheiro; as Etiquetas listam o `tag/index.json` e cada etiqueta (pelo `name`, com "(desatualizada)" nas que têm `outdated`). Cada linha tem o URL, "Abrir" e "Copiar link";
+- **uma caixa âmbar "Avisos desta publicação"** por cima do botão do painel, só quando o gerador deixou avisos (terceiro argumento de `paginaInicial`).
 
 Os nomes das linhas (ex.: "Tokens · Cores") são as etiquetas do painel (`label` da coleção e do template), lidas do `tina/tina-lock.json`. Se uma etiqueta não estiver no lock, aparece o nome técnico (`tokens`, `colors`). Nos `soJson`, a linha usa o nome do ficheiro.
 
@@ -184,6 +193,17 @@ Os URLs mostrados são absolutos com `BASE_URL` (no CI) e relativos sem ele (em 
 O `tina/guia.ts` acrescenta ao menu do painel, na secção *Site*, as páginas **Guia: Começar**, **Cores**, **Tamanhos de texto**, **Botões**, **Elementos** e **Etiquetas**, para quem usa o que o AMEDAS publica. São *screen plugins* do Tina, registados no `cmsCallback` do `tina/config.ts`, e o URL é `#/screens/<slugify do nome>` (o Tina tira acentos e símbolos: `guia_cores`, `guia_botes`).
 - **Ao vivo:** as listas de variáveis e de ficheiros leem o que está publicado (`tokens.css`, `button.css`, `element/index.json`, `tag/index.json`), primeiro ao lado do painel (`../`) e, se falhar, no Pages. Na porta 4001 do `tinacms dev` usam o Pages; na 3000 usam o `public/` local. A página das Cores aplica o `tokens.css` enquanto está aberta, para as amostras e o exemplo com `data-config`.
 - **Escrito à mão:** os textos e os exemplos de código (nomes de variáveis, forma do JSON, URLs). **Ao mudar nomes de variáveis, a forma de um JSON ou o que é publicado, atualiza também o `guia.ts`.** As etiquetas vêm de `PARES`, `IDIOMAS`, `TIPOS` e `GRUPO`.
+- **Etiquetas desatualizadas:** a página Etiquetas mostra uma nota e a marca "desatualizada" nas etiquetas com `outdated` no `tag/index.json`.
+
+### Alertas ao abrir o painel
+
+O `cmsCallback` chama `avisarAoAbrir(cms)` (`tina/avisos.ts`) uma vez por carregamento, sem bloquear o arranque. Usa os alertas do Tina (`cms.alerts`):
+- **Avisos da última publicação:** lê o `avisos.json` publicado (com `lerPublicado`, como o guia) e mostra cada aviso num alerta amarelo (`warn` com timeout 0, que fica até ser fechado).
+  - O `gerar.mjs` escreve sempre `public/avisos.json`, mesmo vazio: `{ generatedAt, warnings: [{ collection, message }] }`. Hoje só as etiquetas deixam avisos.
+  - No GitHub Actions, cada aviso aparece também como anotação (`::warning`) no resumo do run.
+- **Publicação falhada:** pede à API pública do GitHub os últimos runs do `pages.yml` no `main`. Se o último run concluído e não cancelado não acabou em `success`, abre uma janela de erro (`error`) com a data, o título do commit e o link do run. Os runs cancelados não contam, porque o `concurrency` do `pages.yml` os substitui pelo seguinte.
+- O repositório (`<owner>/<repo>`) tira-se do `PAGES`.
+- Os alertas amarelos só aceitam texto. A janela de erro aceita quebras de linha, e o Tina torna os URLs do texto em links.
 
 ### Convenções de nomes
 
@@ -200,7 +220,7 @@ Os comandos estão em `package.json`. O que não é óbvio:
   - o painel abre em `http://localhost:4001/AMEDAS/admin/` ou em `http://localhost:3000/admin/index.html`.
 - **`npm run build`** é o build de **produção**. Precisa de `TINA_CLIENT_ID` e `TINA_TOKEN` (secrets no CI, ou `.env` na raiz em local; a CLI do Tina carrega `<raiz>/.env`). Sem elas falha com *"Client not configured properly"*, **e isso é esperado**.
 - **`npm run build:local`** faz o build sem TinaCloud. É o comando certo para testar o build em local.
-- **`node scripts/gerar.mjs`** gera o CSS e a página inicial (não faz o build do painel). Com `BASE_URL=https://<owner>.github.io/AMEDAS`, os URLs das imagens e os URLs mostrados na página inicial ficam absolutos.
+- **`node scripts/gerar.mjs`** gera o CSS e a página inicial (não faz o build do painel). Com `BASE_URL=https://<owner>.github.io/AMEDAS`, os URLs das imagens e os URLs mostrados na página inicial ficam absolutos, e uma etiqueta com o ficheiro apagado vai buscar ao Pages a versão publicada. Os avisos saem no terminal e em `public/avisos.json`.
 
 ## Receitas
 
@@ -289,6 +309,10 @@ Cada ponto tem: sintoma → causa → o que fazer.
 
 ### 6. `basePath`, imagens e URLs
 - **`basePath`:** `build.basePath: 'AMEDAS'` tem de ser igual ao nome do repositório no GitHub, porque o Pages serve o site em `/<repo>/`.
+- **Mudar o dono do repositório:** o Pages fica em `https://<owner>.github.io/AMEDAS/`. Ao transferir o repositório, o GitHub redireciona o git e o github.com, mas **não** o Pages: o endereço antigo dá 404, e o site no endereço novo mantém os URLs antigos até ao próximo deploy. O que fazer:
+  - voltar a correr o `pages.yml` (o `BASE_URL` vem de `github.repository_owner`);
+  - mudar a constante `PAGES` em `tina/campos.ts` (dá também o repositório ao alerta de publicação falhada), o `AMEDA_URL` do Seara (`src/index.ts`, com versão nova; ver [ponto 13](#13-do-lado-das-libs)) e os links nas apps;
+  - em https://app.tina.io/ → projeto `AMEDAS` → **Configuration**: **Change Repository** (a app Tina.io tem de estar instalada no novo dono), trocar o Site URL para `https://<owner>.github.io` e **Refresh Webhooks**.
 - **Caminhos das imagens:** os campos `image` gravam `/uploads/<ficheiro>`, **sem** `/AMEDAS`. O gerador acrescenta o `BASE_URL`, que só está definido no CI; em local, o `url()` fica relativo. Os JSON copiados para `public/` mantêm o caminho cru, por isso quem os ler tem de juntar a base.
 - **Media Manager:** o URL que mostra é `window.location.origin + src`. Com o painel aberto na porta 4001, o link dá 404, porque as imagens são servidas na 3000.
 
@@ -356,7 +380,7 @@ O componente Button do projeto `Button-Tina` (antes em `~/Secretária/Button-Tin
 
 Estados como `:hover` e o sublinhado da página ativa não funcionam com estilos inline (`style={{…}}`): precisam de classes CSS na lib.
 
-Os Elementos leem-se com o **Seara** (`~/Documentos/Seara`, repositório privado `ProjectsAV/Seara`, pacote `@arva/seara`), um cliente TypeScript. O `src/types.ts` dele espelha a forma do JSON (`TextContent`, `GroupContent`, `ContentBlock`…). **Ao mudar a forma ou os tipos dos Elementos, atualiza também o Seara** e lança uma versão nova (`npm version minor` e `git push --follow-tags`; o GitHub Action publica a tag `build-vX.Y.Z`). A Arva Webpage (`~/Documentos/Arva Webpage`) usa o Seara.
+Os Elementos leem-se com o **Seara** (`~/Documentos/Seara`, repositório privado `Arva-Vare/Seara`, pacote `@arva/seara`), um cliente TypeScript. O `src/types.ts` dele espelha a forma do JSON (`TextContent`, `GroupContent`, `ContentBlock`…). **Ao mudar a forma ou os tipos dos Elementos, atualiza também o Seara** e lança uma versão nova (`npm version minor` e `git push --follow-tags`; o GitHub Action publica a tag `build-vX.Y.Z`). A Arva Webpage (`~/Documentos/Arva Webpage`) usa o Seara.
 
 ### 14. Restos no repositório
 - **`conteudo/nav/`:** pasta vazia, criada pelo painel quando ainda era permitido criar pastas. O git ignora-a.
@@ -368,11 +392,19 @@ Os Elementos leem-se com o **Seara** (`~/Documentos/Seara`, repositório privado
 - **O que fazer:** dá ao campo novo um nome distinto (foi por isso que o `text` usa `h1Size` e `customSizes`).
 
 ### 16. Etiquetas
-- **Ficheiro apagado do Media Manager:** se uma etiqueta aponta para um ficheiro que já não existe, o gerador lança erro e o deploy para (o Pages continua com a versão anterior, por isso o link da etiqueta continua a funcionar). Corrige-se escolhendo outro ficheiro na etiqueta. O Media Manager não avisa ao apagar.
+- **Ficheiro apagado do Media Manager:**
+  - **Sintoma:** a etiqueta mostra o aviso vermelho, o painel abre com um alerta amarelo e a página inicial tem a caixa de avisos. O link continua a servir a versão anterior.
+  - **Causa:** o Media Manager não avisa ao apagar, nem quando o ficheiro novo tem outro nome. Em 2026-11-12, `AEVO-Port-logo.svg` foi apagado e carregado de novo como `AEVO-Port-Logo.svg` (o GitHub e o Pages distinguem maiúsculas). Até essa data o gerador lançava erro, o deploy parava e mais nada chegava ao site até alguém corrigir a etiqueta.
+  - **O que fazer:** escolher outro ficheiro na etiqueta. O aviso sugere um com o mesmo nome a menos de maiúsculas.
 - **Link muda com a extensão:** ver [Etiquetas](#etiquetas). Se for preciso um link sem extensão, teria de ser outra solução (ex.: um ficheiro HTML com redirecionamento, que não serve para `<img>` nem `<link rel="icon">`).
 - **Cache:** o Pages deixa o browser guardar os ficheiros até 10 minutos, e os browsers guardam os favicons durante mais tempo.
 - **Em local:** a pré-visualização da imagem no campo `file` aparece partida na porta 4001 (ver [ponto 6](#6-basepath-imagens-e-urls)); o link mostrado é sempre o do Pages.
 - **`slug()`:** o link no painel (`LinkEtiqueta`) e o ficheiro publicado usam o `slug()` de `campos.ts` e do `gerar.mjs`, que têm de ficar iguais (ver [ponto 7](#7-cores-e-listas-personalizadas)).
+
+### 17. Alertas ao abrir o painel
+- **Sintoma:** a última publicação falhou e o painel abre sem a janela de erro.
+- **Causa:** a API do GitHub sem token aceita 60 pedidos por hora por IP. Acima disso, sem rede, ou com o `PAGES` a apontar para outro dono (ex.: depois de transferir o repositório sem o mudar), o pedido falha e o `avisos.ts` não avisa, de propósito, para não incomodar.
+- **O que fazer:** confirma o `PAGES` e vê os runs em `https://github.com/<owner>/AMEDAS/actions`.
 
 ## Pendente
 1. Decidir o mapeamento das cores e dos tamanhos de texto nas libs, por exemplo, o fundo do botão principal = `--color--primary`. A escolha da configuração já está decidida (`data-config`). Não há token para o texto sobre as cores principal, secundária e terciária.

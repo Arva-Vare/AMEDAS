@@ -7,3 +7,4 @@ tina/__generated__
 .env
 public/index.html
 public/tag
+public/avisos.json

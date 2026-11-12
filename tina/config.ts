@@ -3,6 +3,7 @@ import { button } from './colecoes/button'
 import { element } from './colecoes/element'
 import { tag } from './colecoes/tag'
 import { tokens } from './colecoes/tokens'
+import { avisarAoAbrir } from './avisos'
 import { guia } from './guia'
 
 export default defineConfig({
@@ -13,9 +14,10 @@ export default defineConfig({
   // basePath = nome do repositório no GitHub (o Pages serve em /<repo>/).
   build: { outputFolder: 'admin', publicFolder: 'public', basePath: 'AMEDAS' },
   media: { tina: { mediaRoot: 'uploads', publicFolder: 'public' } },
-  // Páginas do guia no menu do painel (secção "Site").
+  // Páginas do guia no menu do painel (secção "Site") e alertas ao abrir (publicação falhada, avisos do gerador).
   cmsCallback: (cms) => {
     for (const pagina of guia) cms.plugins.add(pagina)
+    avisarAoAbrir(cms)
     return cms
   },
   schema: {

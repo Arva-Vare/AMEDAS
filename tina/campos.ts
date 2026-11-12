@@ -5,7 +5,7 @@ import { CorHerdavel, CorRgba, parseRgba } from './componentes/corRgba'
 // Funções partilhadas pelas coleções, para não repetir os mesmos campos.
 
 /** Endereço publicado no GitHub Pages (o guia e os links das etiquetas). */
-export const PAGES = 'https://projectsav.github.io/AMEDAS'
+export const PAGES = 'https://arva-vare.github.io/AMEDAS'
 
 /** Nome → parte de uma variável CSS: "Azul Marca" → "azul-marca". */
 export const slug = (nome: string) =>

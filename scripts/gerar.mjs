@@ -21,6 +21,15 @@ const rotuloTemplate = (colecao, template) => rotulos[colecao]?.templates[templa
 // Secções da página inicial: uma por coleção, com os links do que foi publicado.
 const seccoes = []
 
+// Avisos: problemas que não param o deploy (ex.: etiqueta com o ficheiro apagado do Media Manager).
+// Vão para public/avisos.json, que o painel lê ao abrir (tina/avisos.ts), e para a página inicial.
+const avisos = []
+const avisar = (collection, message) => {
+  avisos.push({ collection, message })
+  // No GitHub Actions, "::warning" aparece também como anotação no resumo do run.
+  console.warn(process.env.GITHUB_ACTIONS ? `::warning title=${collection}::${message.replace(/%/g, '%25')}` : `Aviso (${collection}): ${message}`)
+}
+
 // Igual ao slug() de tina/campos.ts: "Azul Marca" → "azul-marca"
 const slug = (nome) =>
   nome
@@ -252,6 +261,25 @@ for (const colecao of soJson) {
   await rm(out, { recursive: true, force: true })
   await mkdir(out, { recursive: true })
 
+  // Versão de uma etiqueta que já está no Pages (pelo tag/index.json da publicação anterior). Só com BASE_URL (CI).
+  let publicadas
+  const versaoPublicada = async (s) => {
+    if (!BASE) return null
+    publicadas ??= fetch(`${BASE}/tag/index.json`, { signal: AbortSignal.timeout(15000) })
+      .then((r) => (r.ok ? r.json() : []))
+      .catch(() => [])
+    const lista = await publicadas
+    const anterior = Array.isArray(lista) ? lista.find((e) => slug(String(e?.name ?? '')) === s) : undefined
+    // O nome publicado é sempre <slug>.<extensão>; recusa outra coisa, para não escrever fora de public/tag/.
+    if (!anterior || !new RegExp(`^${s}\\.[a-z0-9]+$`).test(anterior.file ?? '')) return null
+    try {
+      const r = await fetch(`${BASE}/tag/${anterior.file}`, { signal: AbortSignal.timeout(15000) })
+      return r.ok ? { file: anterior.file, source: anterior.source, dados: Buffer.from(await r.arrayBuffer()) } : null
+    } catch {
+      return null
+    }
+  }
+
   const dados = JSON.parse(await readFile(join('conteudo', 'tag', 'tags.json'), 'utf8').catch(() => '{}'))
   const etiquetas = []
   const nomes = new Set()
@@ -268,8 +296,20 @@ for (const colecao of soJson) {
     if (!origem.startsWith(uploads + sep)) throw new Error(`Etiqueta "${name}": o ficheiro "${file}" não está no Media Manager (uploads/)`)
     const ext = extname(origem).slice(1).toLowerCase()
     if (!ext) throw new Error(`Etiqueta "${name}": o ficheiro "${file}" não tem extensão`)
-    if (!(await stat(origem).catch(() => null))?.isFile())
-      throw new Error(`Etiqueta "${name}": o ficheiro "${file}" não existe (foi apagado do Media Manager?)`)
+    if (!(await stat(origem).catch(() => null))?.isFile()) {
+      // Ficheiro apagado do Media Manager (ou com outro nome): não para o deploy, para o resto chegar ao site.
+      // Volta a publicar a versão que já está no Pages (o link não parte) e avisa. A cópia só existe no Pages:
+      // quando a etiqueta apontar para um ficheiro que existe, é substituída (ou desaparece, se a extensão mudar).
+      const anterior = await versaoPublicada(s)
+      if (anterior) {
+        await writeFile(join(out, anterior.file), anterior.dados)
+        etiquetas.push({ name, file: anterior.file, source: anterior.source, outdated: true })
+        avisar('tag', `Etiqueta "${name}": o ficheiro "${file}" não existe no Media Manager (foi apagado ou mudou de nome?). Continua publicada a versão anterior (${anterior.source}), que fica desatualizada até escolheres outro ficheiro na etiqueta.`)
+      } else {
+        avisar('tag', `Etiqueta "${name}": o ficheiro "${file}" não existe no Media Manager (foi apagado ou mudou de nome?) e não há versão anterior publicada${BASE ? '' : ' (em local, sem BASE_URL, não se procura)'}. A etiqueta não foi publicada: o link dá 404 até escolheres outro ficheiro na etiqueta.`)
+      }
+      continue
+    }
     await copyFile(origem, join(out, `${s}.${ext}`))
     etiquetas.push({ name, file: `${s}.${ext}`, source: relativo })
   }
@@ -278,11 +318,15 @@ for (const colecao of soJson) {
     titulo: rotulo('tag'),
     links: [
       { nome: `${rotulo('tag')} · lista de etiquetas`, href: 'tag/index.json' },
-      ...etiquetas.map((e) => ({ nome: `${rotulo('tag')} · ${e.name}`, href: `tag/${e.file}` })),
+      ...etiquetas.map((e) => ({ nome: `${rotulo('tag')} · ${e.name}${e.outdated ? ' (desatualizada)' : ''}`, href: `tag/${e.file}` })),
     ],
   })
   console.log(`conteudo/tag/tags.json → ${out}/ (${etiquetas.length} etiquetas + index.json)`)
 }
 
-await writeFile(join('public', 'index.html'), paginaInicial(seccoes, BASE))
+// Escrito sempre (lista vazia quando não há avisos), para o painel distinguir "sem avisos" de "não publicado".
+await writeFile(join('public', 'avisos.json'), `${JSON.stringify({ generatedAt: new Date().toISOString(), warnings: avisos }, null, 2)}\n`)
+console.log(`public/avisos.json (${avisos.length} avisos)`)
+
+await writeFile(join('public', 'index.html'), paginaInicial(seccoes, BASE, avisos))
 console.log('public/index.html (página inicial)')

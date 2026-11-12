@@ -130,7 +130,8 @@ const pagina = (titulo: string, intro: string, ...seccoes: ReactNode[]) =>
 
 // Lê um ficheiro publicado: primeiro ao lado do painel (o que este site publicou), depois no Pages.
 // Com o painel aberto no tinacms dev (porta 4001) os ficheiros de public/ não existem ali, e usa-se o Pages.
-const lerPublicado = async (caminho: string) => {
+// Também usada por tina/avisos.ts.
+export const lerPublicado = async (caminho: string) => {
   for (const base of [new URL('..', location.href).href, `${PAGES}/`]) {
     try {
       const r = await fetch(base + caminho, { cache: 'no-store' })
@@ -565,10 +566,11 @@ const grupos = versao.contents
 
 const Etiquetas = () => {
   const lido = usePublicado('tag/index.json')
-  let etiquetas: { name: string; file: string; source: string }[] = []
+  let etiquetas: { name: string; file: string; source: string; outdated?: true }[] = []
   try {
     etiquetas = JSON.parse(lido?.texto ?? '[]')
   } catch {}
+  const desatualizadas = etiquetas.filter((e) => e.outdated).length
   const imagem = /\.(png|jpe?g|gif|webp|svg|avif|ico)$/i
   // As pré-visualizações vêm de onde se leu a lista (local ou Pages); os links mostram sempre o Pages.
   const pasta = lido?.url.replace(/index\.json$/, '') ?? `${PAGES}/tag/`
@@ -590,11 +592,16 @@ const Etiquetas = () => {
     seccao(
       'Etiquetas publicadas',
       origem(lido, 'tag/index.json'),
+      desatualizadas
+        ? nota(
+            `${desatualizadas === 1 ? 'Uma etiqueta aponta' : `${desatualizadas} etiquetas apontam`} para um ficheiro que já não existe no Media Manager. O link continua a funcionar, mas com a versão anterior, que fica desatualizada até alguém escolher outro ficheiro em Etiquetas → tags.`,
+          )
+        : null,
       etiquetas.length
         ? tabela(
             ['Etiqueta', 'Link', 'Ficheiro escolhido', ''],
             etiquetas.map((e) => [
-              e.name,
+              e.outdated ? h(Fragment, null, e.name, etiqueta('desatualizada', '#b91c1c')) : e.name,
               link(`${PAGES}/tag/${e.file}`, `tag/${e.file}`),
               `\`${e.source}\``,
               imagem.test(e.file)
@@ -614,6 +621,7 @@ type Etiqueta = {
   name: string    // nome no painel
   file: string    // ficheiro publicado, em tag/ (ex.: "favicon.png")
   source: string  // ficheiro escolhido no Media Manager (ex.: "/uploads/favicon-natal.png")
+  outdated?: true // ficheiro apagado: "file" e "source" são os da versão anterior
 }
 type Ficheiro = Etiqueta[]`),
     ),
@@ -622,7 +630,7 @@ type Ficheiro = Etiqueta[]`),
       lista([
         'Em Etiquetas → tags, acrescenta uma etiqueta, dá-lhe um nome e escolhe o ficheiro (abre o Media Manager).',
         'Para trocar o ficheiro de uma etiqueta, escolhe outro ficheiro; não mudes o nome.',
-        'Não apagues do Media Manager um ficheiro que esteja numa etiqueta: a publicação para até a etiqueta apontar para outro ficheiro.',
+        'Não apagues do Media Manager um ficheiro que esteja numa etiqueta. Se acontecer, a etiqueta mostra um aviso vermelho e o site continua com a versão anterior (desatualizada) até escolheres outro ficheiro.',
       ]),
     ),
   )

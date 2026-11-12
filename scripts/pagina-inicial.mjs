@@ -8,8 +8,19 @@ const esc = (s) =>
 /**
  * @param {{ titulo: string, links: { nome: string, href: string }[] }[]} seccoes
  * @param {string} base URL público (BASE_URL); vazio em local, e aí os URLs mostrados ficam relativos.
+ * @param {{ collection: string, message: string }[]} [avisos] avisos do gerador; aparecem numa caixa no topo.
  */
-export const paginaInicial = (seccoes, base) => {
+export const paginaInicial = (seccoes, base, avisos = []) => {
+  const caixaAvisos = avisos.length
+    ? `
+    <div class="avisos">
+      <h2>Avisos desta publicação</h2>
+      <ul>${avisos.map((a) => `
+        <li>${esc(a.message)}</li>`).join('')}
+      </ul>
+    </div>
+`
+    : ''
   const linha = ({ nome, href }) => `
         <li>
           <div class="info">
@@ -85,6 +96,13 @@ export const paginaInicial = (seccoes, base) => {
     .botao.copiado { color: var(--laranja-escuro); border-color: var(--laranja); background: var(--laranja-claro); }
     .principal { background: var(--laranja-escuro); border-color: var(--laranja-escuro); color: #fff; font-size: 14px; font-weight: 600; padding: 11px 22px; }
     .principal:hover { background: var(--laranja); border-color: var(--laranja); color: #fff; }
+    /* Avisos do gerador (ex.: etiqueta com o ficheiro apagado): âmbar, como os avisos do painel */
+    .avisos { background: #fffbeb; border: 1px solid #fde68a; border-left: 4px solid #d97706; border-radius: 8px;
+      padding: 16px 22px; margin-bottom: 24px; }
+    .avisos h2 { margin: 0 0 6px; font-size: 15px; font-weight: 600; color: #92400e; }
+    .avisos ul { list-style: disc; padding-left: 18px; background: none; border: 0; box-shadow: none; overflow: visible; }
+    .avisos li { display: list-item; padding: 2px 0; border: 0; color: var(--texto-2); font-size: 14px; }
+    .avisos li:hover { background: none; }
     footer { color: var(--suave); font-size: 13px; }
     @media (max-width: 560px) {
       li { flex-direction: column; align-items: stretch; }
@@ -99,7 +117,7 @@ export const paginaInicial = (seccoes, base) => {
       <h1>Conteúdo publicado</h1>
       <p>Conteúdo de design editado no painel e publicado aqui para as libs.</p>
     </header>
-
+${caixaAvisos}
     <div class="painel">
       <div>
         <h2>Painel de edição</h2>
