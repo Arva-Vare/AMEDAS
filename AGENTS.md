@@ -458,6 +458,11 @@ Os Dados leem-se com `seara.data({ dataName, path? })`, que pede `<url>/data/<da
   - **O que fazer:** confirma o nome em `data/index.json`. Mudar o nome de um ficheiro ou de uma chave obriga as apps a mudar também.
 - **Ficheiro `index`:** ver [ponto 9](#9-coleção-elementos), *Publicação*.
 
+### 19. Deploy no GitHub Pages
+- **Sintoma:** o `pages.yml` falha só no último passo (`actions/deploy-pages`) com *No artifacts named "github-pages" were found*, embora o `npm run build` e o `upload-pages-artifact` tenham passado. Aconteceu em 2026-11-25 (run `45697332764`).
+- **Causa:** do lado do GitHub, o artefacto ainda não aparecia na API 2 segundos depois do upload. A própria mensagem pede para voltar a correr mais tarde.
+- **O que fazer:** corre o workflow outra vez num run novo: **Run workflow** no separador Actions, ou `gh workflow run pages.yml --ref main` (o `workflow_dispatch` publica o último commit do `main`). **Não uses "Re-run failed jobs"**: o run fica com dois artefactos `github-pages` e falha com *Multiple artifacts named "github-pages" were unexpectedly found*.
+
 ## Pendente
 1. Decidir o mapeamento das cores e dos tamanhos de texto nas libs, por exemplo, o fundo do botão principal = `--color--primary`. A escolha da configuração já está decidida (`data-config`). Não há token para o texto sobre as cores principal, secundária e terciária.
 2. Confirmar em tina.io os limites do plano gratuito (utilizadores, modo editorial).
