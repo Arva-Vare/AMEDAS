@@ -121,7 +121,7 @@ ${caixaAvisos}
     <div class="painel">
       <div>
         <h2>Painel de edição</h2>
-        <p>Altera cores, tamanhos, botões, elementos e etiquetas. Pede login do TinaCloud.</p>
+        <p>Altera cores, tamanhos, botões, elementos, dados e etiquetas. Pede login do TinaCloud.</p>
       </div>
       <a class="botao principal" href="admin/">Abrir o painel</a>
     </div>

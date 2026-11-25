@@ -1,6 +1,6 @@
 {
   "name": "amedas",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "scripts": {
     "dev": "tinacms dev -c \"python3 -m http.server 3000 -d public\"",
     "build": "tinacms build && node scripts/gerar.mjs",

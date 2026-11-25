@@ -179,9 +179,10 @@ for (const [colecao, templates] of Object.entries(colecoes)) {
   console.log(`${dir}/ → ${out}/${colecao}.css`)
 }
 
-// Coleções sem CSS: os JSON são só copiados para public/<coleção>/, para as libs os lerem,
+// Coleções sem CSS: os JSON são publicados em public/<coleção>/, para as libs os lerem,
 // com um index.json que lista os ficheiros (o Pages não deixa listar pastas).
-const soJson = ['element']
+// São copiados tal e qual, exceto nas coleções que estão em "publicar".
+const soJson = ['element', 'data']
 
 // Tipos de bloco dos Elementos. Têm de ficar iguais a TIPOS, REPETIVEIS e GRUPO em tina/colecoes/element.ts.
 const TIPOS_BLOCO = ['title', 'text', 'eyebrow', 'subtitle', 'item', 'quote']
@@ -205,6 +206,11 @@ const verificarBlocos = (blocos, aqui, comGrupos) => {
   }
 }
 
+// Chaves dos Dados. Têm de ficar iguais a chaveLimpa e chaveComparavel em tina/colecoes/data.ts:
+// gravada/publicada em Unicode composto (NFC) e sem espaços nas pontas; comparada também sem distinguir maiúsculas.
+const chaveLimpa = (chave) => chave.normalize('NFC').trim()
+const chaveComparavel = (chave) => chaveLimpa(chave).toLowerCase()
+
 // Verificações das coleções sem CSS (o painel já as faz; isto apanha JSON editado fora dele).
 const verificar = {
   element: (dados, file) => {
@@ -227,7 +233,33 @@ const verificar = {
       }
     }
   },
+  // Dados: pelo menos um par, cada um com chave, sem chaves repetidas, e um valor que se possa escrever como texto.
+  data: (dados, file) => {
+    if (!dados || typeof dados !== 'object' || Array.isArray(dados)) throw new Error(`${file}: tem de ser um objeto { "items": [...] }`)
+    if (dados.items != null && !Array.isArray(dados.items)) throw new Error(`${file}: "items" tem de ser uma lista de pares`)
+    const pares = dados.items ?? []
+    if (!pares.length) throw new Error(`${file}: não tem pares (chave e valor)`)
+    const chaves = new Set()
+    for (const par of pares) {
+      if (typeof par?.key !== 'string' || !chaveLimpa(par.key)) throw new Error(`${file}: há um par sem chave`)
+      const chave = chaveComparavel(par.key)
+      if (chaves.has(chave)) throw new Error(`${file}: a chave "${chaveLimpa(par.key)}" está repetida`)
+      chaves.add(chave)
+      // Números e verdadeiro/falso passam a texto (o painel mostra-os assim); listas e objetos não têm texto certo.
+      if (typeof par.value === 'object' && par.value !== null) throw new Error(`${file}: o valor da chave "${chaveLimpa(par.key)}" tem de ser texto`)
+    }
+  },
 }
+
+// O que se publica de cada ficheiro, nas coleções que não são copiadas tal e qual (corre depois de "verificar").
+// Dados: só { items: [{ key, value }] }, a forma DataItem do Seara: a chave limpa (chaveLimpa) e o valor
+// sempre texto ("" quando falta).
+const publicar = {
+  data: (dados) => ({ items: dados.items.map(({ key, value }) => ({ key: chaveLimpa(key), value: value == null ? '' : String(value) })) }),
+}
+
+// Nome reservado em todas as coleções sem CSS: o index.json publicado é a lista dos ficheiros.
+const RESERVADO = 'index.json'
 
 for (const colecao of soJson) {
   const dir = join('conteudo', colecao)
@@ -236,10 +268,15 @@ for (const colecao of soJson) {
   await rm(out, { recursive: true, force: true })
   await mkdir(out, { recursive: true })
 
-  const ficheiros = (await readdir(dir).catch(() => [])).filter((f) => f.endsWith('.json')).sort()
+  const ficheiros = (await readdir(dir).catch(() => [])).filter((f) => f.endsWith('.json') && f !== RESERVADO).sort()
+  // Um ficheiro com o nome reservado não é publicado (senão o index.json da lista apagava-o): não para o deploy, avisa.
+  if ((await stat(join(dir, RESERVADO)).catch(() => null))?.isFile())
+    avisar(colecao, `O ficheiro "${RESERVADO}" de ${rotulo(colecao)} não foi publicado: o nome "index" está reservado para a lista dos ficheiros. Muda-lhe o nome no painel (Rename) e atualiza as apps que o pedem.`)
   for (const file of ficheiros) {
-    verificar[colecao]?.(JSON.parse(await readFile(join(dir, file), 'utf8')), `${dir}/${file}`)
-    await copyFile(join(dir, file), join(out, file))
+    const dados = JSON.parse(await readFile(join(dir, file), 'utf8'))
+    verificar[colecao]?.(dados, `${dir}/${file}`)
+    if (publicar[colecao]) await writeFile(join(out, file), `${JSON.stringify(publicar[colecao](dados), null, 2)}\n`)
+    else await copyFile(join(dir, file), join(out, file))
   }
   await writeFile(join(out, 'index.json'), `${JSON.stringify(ficheiros, null, 2)}\n`)
   seccoes.push({

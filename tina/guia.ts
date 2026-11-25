@@ -186,7 +186,7 @@ const etiqueta = (texto: string, cor = '#6b7280') =>
 const Comecar = () =>
   pagina(
     'Começar',
-    'O AMEDAS guarda os tokens de design (cores, tamanhos de texto e medidas dos botões) e os textos editados neste painel, e publica-os como ficheiros CSS e JSON. As apps e as libs React incluem esses ficheiros e usam as variáveis CSS.',
+    'O AMEDAS guarda os tokens de design (cores, tamanhos de texto e medidas dos botões), os textos e os dados (pares chave-valor) editados neste painel, e publica-os como ficheiros CSS e JSON. As apps e as libs React incluem esses ficheiros e usam as variáveis CSS.',
     seccao(
       'Ficheiros publicados',
       tabela(
@@ -195,6 +195,7 @@ const Comecar = () =>
           ['Cores e tamanhos de texto', link(`${PAGES}/tokens/tokens.css`)],
           ['Medidas dos botões', link(`${PAGES}/button/button.css`)],
           ['Textos (Elementos), um JSON por ficheiro do painel', link(`${PAGES}/element/index.json`)],
+          ['Pares chave-valor (Dados), um JSON por ficheiro do painel', link(`${PAGES}/data/index.json`)],
           ['Ficheiros com link fixo (Etiquetas)', link(`${PAGES}/tag/index.json`)],
         ],
       ),
@@ -242,6 +243,7 @@ export default function RootLayout({ children }) {
         'Guia: Tamanhos de texto: variáveis `--font-size-*`.',
         'Guia: Botões: medidas dos botões e como as juntar às cores.',
         'Guia: Elementos: ler os textos em vários idiomas.',
+        'Guia: Dados: ler os pares chave-valor (ex.: o preço de um produto).',
         'Guia: Etiquetas: ficheiros do Media Manager com um link que não muda (ex.: o favicon).',
       ]),
     ),
@@ -564,6 +566,110 @@ const grupos = versao.contents
   )
 }
 
+// Pares de um ficheiro de Dados publicado. Só existe com o ficheiro aberto, para não ler todos os ficheiros de uma vez.
+const ParesDados = ({ ficheiro }: { ficheiro: string }) => {
+  const lido = usePublicado(`data/${ficheiro}`)
+  let pares: { key: string; value: string }[] = []
+  try {
+    pares = JSON.parse(lido?.texto ?? '{}').items ?? []
+  } catch {}
+  if (lido === undefined) return p('A carregar…')
+  if (lido === null) return nota(`Não foi possível ler \`data/${ficheiro}\`.`)
+  return h(
+    Fragment,
+    null,
+    h('p', { style: { margin: '0 0 8px' } }, link(`${PAGES}/data/${ficheiro}`)),
+    // A chave vai num <code> próprio (não pelo t()), para um acento grave na chave não a partir.
+    tabela(
+      ['Chave', 'Valor'],
+      pares.map(({ key, value }) => [
+        h('code', { style: { background: '#f3f4f6', padding: '1px 5px', borderRadius: 4, fontSize: '0.9em' } }, key),
+        h('span', { style: { whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' } }, value),
+      ]),
+    ),
+  )
+}
+
+// Um ficheiro de Dados publicado, recolhido: o nome e, ao abrir, os pares.
+const FicheiroDados = ({ ficheiro }: { ficheiro: string }) => {
+  const [aberto, setAberto] = useState(false)
+  return h(
+    'details',
+    {
+      onToggle: (e: any) => setAberto(e.currentTarget.open),
+      style: { border: '1px solid #e5e7eb', borderRadius: 8, padding: '10px 16px', margin: '0 0 8px', background: '#fff' },
+    },
+    h('summary', { style: { cursor: 'pointer', fontWeight: 600, color: '#111827' } }, ficheiro.replace(/\.json$/, '')),
+    aberto ? h('div', { style: { marginTop: 10 } }, h(ParesDados, { ficheiro })) : null,
+  )
+}
+
+const Dados = () => {
+  const lido = usePublicado('data/index.json')
+  let ficheiros: string[] = []
+  try {
+    ficheiros = JSON.parse(lido?.texto ?? '[]')
+  } catch {}
+  return pagina(
+    'Dados',
+    'Os Dados guardam informação que não é texto traduzido, em pares de chave e valor (ex.: o preço e a referência de um produto). Cada ficheiro do painel é um conjunto de pares e é publicado como JSON em `data/<ficheiro>.json`.',
+    seccao(
+      'Forma do JSON',
+      codigo(`
+type DataContent = { key: string; value: string }
+type DataItem = { items: DataContent[] }`),
+      codigo(`
+{ "items": [
+  { "key": "nome", "value": "Camisola" },
+  { "key": "preco", "value": "20" }
+] }`),
+      lista([
+        'Cada chave aparece uma só vez no ficheiro. O painel não deixa gravar duas chaves que só diferem em maiúsculas ou em espaços nas pontas (`Preco` e `preco` são a mesma).',
+        'A chave publicada não tem espaços no início nem no fim. Procura-a com o nome exato que está no painel.',
+        'O `value` é sempre texto (vem `""` quando está vazio). Converte-o onde precisares, por exemplo com `Number(value)`.',
+        'A ordem dos pares é a do painel.',
+        'Cada ficheiro tem pelo menos um par.',
+      ]),
+    ),
+    seccao(
+      'Ler com o Seara',
+      p('Nas versões do cliente `@arva/seara` que têm o método `data`, o `dataName` é o nome do ficheiro sem `.json` (distingue maiúsculas):'),
+      codigo(`
+import { Seara } from '@arva/seara'
+
+const seara = new Seara()
+const dados = await seara.data({ dataName: 'camisola' })
+const preco = Number(dados.items.find((x) => x.key === 'preco')?.value)`),
+    ),
+    seccao(
+      'Ler sem o Seara',
+      codigo(`
+const resposta = await fetch('${PAGES}/data/camisola.json')
+const { items } = await resposta.json()
+
+// Como objeto: { nome: 'Camisola', preco: '20' }
+const dados = Object.fromEntries(items.map(({ key, value }) => [key, value]))`),
+    ),
+    seccao(
+      'Dados publicados',
+      origem(lido, 'data/index.json'),
+      p('O `data/index.json` tem a lista dos ficheiros. Os nomes distinguem maiúsculas: pede o nome exato. Abre um ficheiro para ver os seus pares.'),
+      ...ficheiros.map((f) => h(FicheiroDados, { key: f, ficheiro: f })),
+      lido && !ficheiros.length ? p('Ainda não há dados.') : null,
+    ),
+    seccao(
+      'No painel',
+      lista([
+        'Em Dados, carrega em Add File, dá um nome ao ficheiro e escreve os pares. Para outro conjunto de dados (ex.: outro produto), cria outro ficheiro: podes ter quantos quiseres.',
+        'Cada linha é um par: a chave à esquerda e o valor à direita. O botão "+ Acrescentar par" junta uma linha, as setas mudam a ordem e o ✕ apaga o par.',
+        'Uma chave vazia ou repetida fica a vermelho e o painel não deixa gravar até a corrigires.',
+        'Para apagar um ficheiro inteiro, abre o menu ⋮ do ficheiro na lista de Dados e escolhe Delete. As apps que o pedem deixam de o encontrar. No mesmo menu, Duplicate faz uma cópia com outro nome.',
+        'Mudar o nome de um ficheiro ou de uma chave obriga as apps a mudar também.',
+      ]),
+    ),
+  )
+}
+
 const Etiquetas = () => {
   const lido = usePublicado('tag/index.json')
   let etiquetas: { name: string; file: string; source: string; outdated?: true }[] = []
@@ -653,5 +759,6 @@ export const guia = [
   ['Guia: Tamanhos de texto', Texto],
   ['Guia: Botões', Botoes],
   ['Guia: Elementos', Elementos],
+  ['Guia: Dados', Dados],
   ['Guia: Etiquetas', Etiquetas],
 ].map(([name, Component]) => ({ __type: 'screen' as const, name, Component, Icon: Livro, layout: 'fullscreen' as const }))

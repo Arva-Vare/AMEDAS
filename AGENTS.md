@@ -4,7 +4,7 @@ Repositório de **conteúdo de design** gerido por pessoas não técnicas atrav�
 
 Não há aplicação nem framework: só o Tina, os conteúdos e o script `scripts/gerar.mjs` (com a página inicial em `scripts/pagina-inicial.mjs`).
 
-**Estado (2026-11-11):** o projeto está em produção. O repositório público é `Arva-Vare/AMEDAS` (o Pages fica em `https://arva-vare.github.io/AMEDAS/`). Até novembro de 2026 esteve na conta `ProjectsAV` (`https://projectsav.github.io/AMEDAS/`, que deixou de funcionar); ver [ponto 6](#6-basepath-imagens-e-urls). O projeto TinaCloud chama-se `AMEDAS` e configura-se em https://app.tina.io/ (repositório, Site URLs, tokens). Os secrets `TINA_CLIENT_ID` e `TINA_TOKEN` estão definidos, o `pages.yml` corre com sucesso e quem edita já grava pelo painel publicado (os commits *TinaCMS content update* / *Update from TinaCMS* vêm daí). Antes de trabalhar em local, faz `git pull`, porque o painel faz commits diretamente no `main`.
+**Estado (2026-11-25):** o projeto está em produção. O repositório público é `Arva-Vare/AMEDAS` (o Pages fica em `https://arva-vare.github.io/AMEDAS/`). Até 2026-11-11 esteve na conta pessoal `ProjectsAV` (`https://projectsav.github.io/AMEDAS/`, que deixou de funcionar) e nesse dia passou para a organização `Arva-Vare`, criada no mesmo dia. A única owner da organização é a conta `ProjectsAV`; o `RiseGhost` é membro. Ver [ponto 6](#6-basepath-imagens-e-urls). O projeto TinaCloud chama-se `AMEDAS` e configura-se em https://app.tina.io/ (repositório, Site URLs, tokens). Os secrets `TINA_CLIENT_ID` e `TINA_TOKEN` estão definidos e o `pages.yml` corre com sucesso. Quem edita grava pelo painel publicado (os commits *TinaCMS content update* / *Update from TinaCMS* vêm daí). Logo a seguir à transferência, o painel deixou de gravar até a app do TinaCloud ser instalada na `Arva-Vare` (ver [ponto 6](#6-basepath-imagens-e-urls)); voltou a gravar em 2026-11-12 (as gravações *TinaCMS content update* das 12:24 e 12:26 desse dia e as de 2026-11-16 tiveram deploy bem-sucedido). Antes de trabalhar em local, faz `git pull`, porque o painel faz commits diretamente no `main`.
 
 ## Fluxo de dados
 
@@ -16,6 +16,7 @@ conteudo/<coleção>/*.json      ← fonte de verdade do conteúdo
    │  node scripts/gerar.mjs
    ▼
 public/<coleção>/<coleção>.css  + cópia dos JSON   (gerado, ignorado no git)
+public/data/<ficheiro>.json     ← Dados, reescritos na forma DataItem do Seara (sem CSS)
 public/tag/<etiqueta>.<ext>     ← cópia do ficheiro do Media Manager escolhido em cada etiqueta
 public/index.html               ← página inicial com os links de tudo
 public/avisos.json              ← avisos que não param o deploy (o painel mostra-os ao abrir)
@@ -43,13 +44,14 @@ libs React (outros repositórios): var(--color--primary), var(--main-btn-radius)
 | `tina/guia.ts` | Páginas do guia no menu do painel (ver [Guia no painel](#guia-no-painel)). Exporta também `lerPublicado`, usada pelo `avisos.ts`. |
 | `tina/avisos.ts` | `avisarAoAbrir(cms)`: alertas ao abrir o painel com os avisos da última publicação e quando a última publicação falhou (ver [Alertas ao abrir o painel](#alertas-ao-abrir-o-painel)). |
 | `tina/componentes/linkEtiqueta.ts` | Componente `LinkEtiqueta`, que mostra o link publicado de cada etiqueta e avisa quando o ficheiro já não está no Media Manager, e as funções `extensao`, `nomeDoFicheiro` e `caminhoNoMedia` (ver [Etiquetas](#etiquetas)). |
+| `tina/componentes/pares.ts` | Componente React próprio para os pares dos Dados: uma tabela com a chave, o valor, **↑ ↓** e **✕** em cada linha, e as chaves vazias ou repetidas a vermelho (ver [Dados](#dados-chave-valor)). |
 | `tina/componentes/blocos.ts` | Componente React próprio para o `contentBlock` dos Elementos: uma secção por idioma, com o idioma em cima, os blocos (tipo e conteúdo) e os grupos de blocos à esquerda e um cartão de pré-visualização à direita (ver [Elementos](#elementos-e-idiomas)). |
 | `README.md` | Apresentação do projeto para pessoas (o que publica, como se usa, comandos) e, na secção *Desenvolvimento com IA*, o ciclo de trabalho do Claude descrito no `CLAUDE.md`. Atualiza-o quando mudar o que é publicado ou esse ciclo. |
 | `CLAUDE.md` | Regras de trabalho do Claude: ler este `AGENTS.md` antes de alterar e avisar que o leu; mantê-lo igual ao código depois de cada alteração e avisar quando o altera. Os factos sobre o projeto ficam aqui, não lá. |
 | `tina/tina-lock.json` | Schema compilado. É **gerado** pelo `tinacms dev` (o `build:local` não o atualiza), mas **tem de ir para o git**, porque o TinaCloud lê o schema a partir dele. |
 | `tina/__generated__/` | Cliente e tipos gerados. Ignorado no git; nunca se edita à mão. |
 | `conteudo/` | Os JSON editados pelo Tina. |
-| `scripts/gerar.mjs` | Converte JSON em CSS e copia os JSON para `public/`. É a única lógica de negócio do repositório. Os problemas que não devem parar o deploy passam por `avisar(coleção, mensagem)` e vão para `public/avisos.json`. |
+| `scripts/gerar.mjs` | Converte JSON em CSS e copia os JSON para `public/` (os Dados são reescritos; ver [Dados](#dados-chave-valor)). É a única lógica de negócio do repositório. Os problemas que não devem parar o deploy passam por `avisar(coleção, mensagem)` e vão para `public/avisos.json`. |
 | `scripts/pagina-inicial.mjs` | HTML da página inicial (ver [Página inicial](#página-inicial)). Chamada no fim do `gerar.mjs`. |
 | `public/uploads/` | Imagens carregadas pelo Media Manager. Ficam no git. |
 | `public/admin/`, `public/<coleção>/`, `public/index.html`, `public/avisos.json` | Gerados (o painel, o CSS, os JSON, as etiquetas, a página inicial e os avisos). Ignorados no git. |
@@ -62,6 +64,7 @@ libs React (outros repositórios): var(--color--primary), var(--main-btn-radius)
 | `tokens` (Tokens) | `conteudo/tokens/` | Fixos: `colors.json` e `text.json`. Não se pode criar nem apagar (as configurações de cores dentro do `colors.json`, sim) | Templates: `colors`, `text` | `tokens/tokens.css` + JSON |
 | `button` (Botões) | `conteudo/button/` | Fixos: `mainButton.json`, `secondaryButton.json`, `navButton.json` | Templates: `mainButton`, `secondaryButton`, `navButton` | `button/button.css` + JSON |
 | `element` (Elementos) | `conteudo/element/` | **Livres**: criar e apagar permitido, sem pastas. Nome com `A-Z a-z 0-9 - _` | `fields` (sem templates): `items[]` com `{ name, contentBlock[] }`; cada `contentBlock` é `{ language, contents[] }` e cada bloco de `contents` é `{ type, content }` ou um grupo `{ type: 'group', contents[] }` | `element/*.json` + `index.json` (sem CSS) |
+| `data` (Dados) | `conteudo/data/` | **Livres**: criar e apagar permitido, sem pastas. Nome com `A-Z a-z 0-9 - _` | `fields` (sem templates): `items[]` com `{ key, value }` | `data/*.json` (reescritos na forma `{ items: [{ key, value }] }`) + `index.json` (sem CSS) |
 | `tag` (Etiquetas) | `conteudo/tag/` | Fixo: `tags.json`. As etiquetas acrescentam-se e apagam-se dentro dele | `fields` (sem templates): `items[]` com `{ name, file, description? }` | `tag/<slug(name)>.<extensão>` (cópia do ficheiro) + `index.json` |
 
 A **fonte de verdade da forma de cada JSON** são os templates e as coleções em `tina/`. O `gerar.mjs` tem de corresponder a eles; ver [Duas fontes de verdade](#1-duas-fontes-de-verdade-schema-e-gerador).
@@ -152,6 +155,32 @@ type TextElement = { name: string; contentBlock: ContentBlock[] }
 - **Valores iniciais (`defaultItem`):** um item novo criado com **+** começa com nome vazio e um `contentBlock` no idioma `default` com um bloco `text` vazio.
 - **Na lista do painel:** cada item aparece com o `name`.
 
+### Dados (chave-valor)
+
+Cada ficheiro em `conteudo/data/` é um elemento de Dados: um conjunto de pares chave → valor para informação que não é texto traduzido (ex.: o preço e a referência de um produto). É publicado em `https://arva-vare.github.io/AMEDAS/data/<ficheiro>.json`, que o Seara lê com `seara.data({ dataName })`. Em TypeScript (tipos `DataContent` e `DataItem` do Seara):
+```ts
+type DataContent = { key: string; value: string }
+type DataItem = { items: DataContent[] }
+```
+```json
+{ "items": [ { "key": "nome", "value": "Camisola" }, { "key": "preco", "value": "20" } ] }
+```
+- **Ficheiros livres:** quem edita cria (**Add File**), apaga, muda o nome e duplica ficheiros (menu ⋮ da lista), sem limite. O nome segue as regras dos Elementos (`nomeFicheiro`; ver [ponto 9](#9-coleção-elementos)) e é o `dataName` do Seara, que distingue maiúsculas. O nome `index` está reservado (ver [ponto 9](#9-coleção-elementos), *Publicação*). A pasta `conteudo/data/` só existe no git depois do primeiro ficheiro; até lá, o gerador publica `data/index.json` com `[]`.
+- **Ficheiro novo:** começa com um par vazio (`defaultItem` da coleção, em `tina/colecoes/data.ts`).
+- **`key`:** obrigatória e **única no ficheiro**. Não há restrição de caracteres.
+  - `chaveLimpa` dá a chave como se grava e publica: Unicode composto (NFC, para um `ç` escrito de duas formas ser o mesmo) e sem espaços nas pontas. `chaveComparavel` compara a chave limpa sem distinguir maiúsculas (`Preco` e ` preco ` são a mesma).
+  - As duas funções existem em `tina/colecoes/data.ts` e no `gerar.mjs`: **têm de ficar iguais**.
+  - O painel limpa a chave ao sair da caixa e, em qualquer gravação (botão Save ou Ctrl+S), no `ui.beforeSubmit` da coleção. O `beforeSubmit` limpa também os próprios objetos de `values.items`, porque depois de gravar o Tina volta a inicializar o formulário com os valores originais (`form.initialize(values)` no `handleSubmit`): sem isso, depois de um Ctrl+S dentro da caixa, a caixa mostrava os espaços e o Save voltava a ficar ativo ao sair dela.
+- **`value`:** texto livre, pode ficar vazio. O painel grava `""`. Num JSON editado à mão, um número ou `true`/`false` publica-se como texto (`"20"`, como o painel o mostra); uma lista ou um objeto faz parar o deploy.
+- **Mínimo:** pelo menos um par por ficheiro (o Seara lança erro com `items` vazio ou em falta).
+- **No painel**, o campo `items` usa o componente `pares(chaveLimpa, chaveComparavel)` (`tina/componentes/pares.ts`) em vez dos formulários à parte do Tina. Os campos `key` e `value` declarados em `fields` definem a forma do JSON e da API GraphQL (`dataConnection`).
+  - Uma linha por par: a caixa **Chave**, a caixa **Valor** (cresce com o texto, com `field-sizing: content`), **↑ ↓** (troca com o par anterior ou seguinte; desativadas nas pontas) e **✕** (desativado quando só há um par).
+  - Uma chave vazia ou repetida fica a vermelho, com *Escreve a chave* ou *Chave repetida* por baixo.
+  - **+ Acrescentar par** junta uma linha vazia no fim e dá foco à chave dela. Ao lado aparece o número de pares.
+- **Validação:** o `paresValidos` (`ui.validate` do `items`) bloqueia a gravação sem pares, com uma chave vazia ou com uma chave repetida, e mostra a mensagem por baixo da tabela. O `gerar.mjs` volta a verificar (`verificar.data`: ficheiro que não é um objeto, `items` que não é lista, sem pares, par sem chave, chave repetida, `value` que é lista ou objeto) e lança erro, o que para o deploy se o JSON for editado fora do painel.
+- **Publicação:** ao contrário dos Elementos, o JSON publicado **não é uma cópia** do ficheiro. O `publicar.data` do `gerar.mjs` reescreve-o como `{ items: [{ key, value }] }`, com a chave limpa (`chaveLimpa`) e o `value` sempre string (`""` quando falta). Como nos Elementos, `public/data/` é apagado e recriado em cada corrida, com o `index.json`.
+- **Compatibilidade:** a coleção é de 2026-11-25 e não mexe nas outras (a saída de Tokens, Botões, Elementos e Etiquetas não mudou). O Seara depende do nome da pasta (`DATA_PATH = "data"`) e da forma `{ items: [{ key, value }] }`: **não mudes** o nome da coleção nem a forma sem atualizar o Seara (ver [ponto 13](#13-do-lado-das-libs)).
+
 ### Etiquetas
 
 Uma etiqueta é um nome fixo que aponta para um ficheiro do Media Manager, para que o link desse nome não mude quando se troca o ficheiro (ex.: vários favicons carregados e uma etiqueta "Favicon" que escolhe o que está em uso). Funciona com qualquer tipo de ficheiro do Media Manager. O número de etiquetas é livre (pode não haver nenhuma) e os ficheiros sem etiqueta continuam publicados só em `uploads/<ficheiro>`.
@@ -190,8 +219,8 @@ Os URLs mostrados são absolutos com `BASE_URL` (no CI) e relativos sem ele (em 
 
 ### Guia no painel
 
-O `tina/guia.ts` acrescenta ao menu do painel, na secção *Site*, as páginas **Guia: Começar**, **Cores**, **Tamanhos de texto**, **Botões**, **Elementos** e **Etiquetas**, para quem usa o que o AMEDAS publica. São *screen plugins* do Tina, registados no `cmsCallback` do `tina/config.ts`, e o URL é `#/screens/<slugify do nome>` (o Tina tira acentos e símbolos: `guia_cores`, `guia_botes`).
-- **Ao vivo:** as listas de variáveis e de ficheiros leem o que está publicado (`tokens.css`, `button.css`, `element/index.json`, `tag/index.json`), primeiro ao lado do painel (`../`) e, se falhar, no Pages. Na porta 4001 do `tinacms dev` usam o Pages; na 3000 usam o `public/` local. A página das Cores aplica o `tokens.css` enquanto está aberta, para as amostras e o exemplo com `data-config`.
+O `tina/guia.ts` acrescenta ao menu do painel, na secção *Site*, as páginas **Guia: Começar**, **Cores**, **Tamanhos de texto**, **Botões**, **Elementos**, **Dados** e **Etiquetas**, para quem usa o que o AMEDAS publica. São *screen plugins* do Tina, registados no `cmsCallback` do `tina/config.ts`, e o URL é `#/screens/<slugify do nome>` (o Tina tira acentos e símbolos: `guia_cores`, `guia_botes`).
+- **Ao vivo:** as listas de variáveis e de ficheiros leem o que está publicado (`tokens.css`, `button.css`, `element/index.json`, `data/index.json`, `tag/index.json`), primeiro ao lado do painel (`../`) e, se falhar, no Pages. Na página Dados, cada ficheiro aparece recolhido e só lê o seu `data/<ficheiro>.json` quando se abre, para a página não ficar pesada com muitos ficheiros. Na porta 4001 do `tinacms dev` usam o Pages; na 3000 usam o `public/` local. A página das Cores aplica o `tokens.css` enquanto está aberta, para as amostras e o exemplo com `data-config`.
 - **Escrito à mão:** os textos e os exemplos de código (nomes de variáveis, forma do JSON, URLs). **Ao mudar nomes de variáveis, a forma de um JSON ou o que é publicado, atualiza também o `guia.ts`.** As etiquetas vêm de `PARES`, `IDIOMAS`, `TIPOS` e `GRUPO`.
 - **Etiquetas desatualizadas:** a página Etiquetas mostra uma nota e a marca "desatualizada" nas etiquetas com `outdated` no `tag/index.json`.
 
@@ -199,7 +228,7 @@ O `tina/guia.ts` acrescenta ao menu do painel, na secção *Site*, as páginas *
 
 O `cmsCallback` chama `avisarAoAbrir(cms)` (`tina/avisos.ts`) uma vez por carregamento, sem bloquear o arranque. Usa os alertas do Tina (`cms.alerts`):
 - **Avisos da última publicação:** lê o `avisos.json` publicado (com `lerPublicado`, como o guia) e mostra cada aviso num alerta amarelo (`warn` com timeout 0, que fica até ser fechado).
-  - O `gerar.mjs` escreve sempre `public/avisos.json`, mesmo vazio: `{ generatedAt, warnings: [{ collection, message }] }`. Hoje só as etiquetas deixam avisos.
+  - O `gerar.mjs` escreve sempre `public/avisos.json`, mesmo vazio: `{ generatedAt, warnings: [{ collection, message }] }`. Hoje deixam avisos as etiquetas com o ficheiro apagado e os ficheiros `index.json` dos Elementos e dos Dados (ver [ponto 9](#9-coleção-elementos)).
   - No GitHub Actions, cada aviso aparece também como anotação (`::warning`) no resumo do run.
 - **Publicação falhada:** pede à API pública do GitHub os últimos runs do `pages.yml` no `main`. Se o último run concluído e não cancelado não acabou em `success`, abre uma janela de erro (`error`) com a data, o título do commit e o link do run. Os runs cancelados não contam, porque o `concurrency` do `pages.yml` os substitui pelo seguinte.
 - O repositório (`<owner>/<repo>`) tira-se do `PAGES`.
@@ -221,6 +250,7 @@ Os comandos estão em `package.json`. O que não é óbvio:
 - **`npm run build`** é o build de **produção**. Precisa de `TINA_CLIENT_ID` e `TINA_TOKEN` (secrets no CI, ou `.env` na raiz em local; a CLI do Tina carrega `<raiz>/.env`). Sem elas falha com *"Client not configured properly"*, **e isso é esperado**.
 - **`npm run build:local`** faz o build sem TinaCloud. É o comando certo para testar o build em local.
 - **`node scripts/gerar.mjs`** gera o CSS e a página inicial (não faz o build do painel). Com `BASE_URL=https://<owner>.github.io/AMEDAS`, os URLs das imagens e os URLs mostrados na página inicial ficam absolutos, e uma etiqueta com o ficheiro apagado vai buscar ao Pages a versão publicada. Os avisos saem no terminal e em `public/avisos.json`.
+- **Versões:** o `version` do `package.json` acompanha as releases do GitHub (tag `vX.Y.Z` e `gh release create`), com as novidades e a compatibilidade nas notas. A primeira foi a `v1.1.0` (2026-11-25), com a coleção Dados. As tags não disparam o `pages.yml` (só o push no `main`), e o site publicado é sempre o do último commit no `main`.
 
 ## Receitas
 
@@ -253,7 +283,7 @@ Cada receita termina com uma verificação. Só está feita quando essa verifica
 2. Importa-a e acrescenta-a a `collections` em `tina/config.ts`. **Faz esta edição por último** (ver [recompilação](#3-recompilação-do-tina-a-meio-de-edições)).
 3. No `gerar.mjs`, uma de duas:
    - **Com CSS:** acrescenta `colecoes.<nome>`, com um mapa template → função. Uma coleção sem templates não tem `_template`, e o ciclo atual exige-o.
-   - **Só JSON:** acrescenta o nome a `soJson`.
+   - **Só JSON:** acrescenta o nome a `soJson`, as verificações a `verificar` e, se o JSON publicado não for a cópia tal e qual (como nos Dados), a função que o escreve a `publicar`.
    - **Outra saída** (como as Etiquetas, que copiam ficheiros): um bloco próprio antes de escrever a página inicial, que acrescenta a sua secção a `seccoes`.
 4. Acrescenta `public/<nome>` ao `.gitignore`.
 5. Atualiza os textos escritos à mão sobre o que é publicado:
@@ -312,7 +342,15 @@ Cada ponto tem: sintoma → causa → o que fazer.
 - **Mudar o dono do repositório:** o Pages fica em `https://<owner>.github.io/AMEDAS/`. Ao transferir o repositório, o GitHub redireciona o git e o github.com, mas **não** o Pages: o endereço antigo dá 404, e o site no endereço novo mantém os URLs antigos até ao próximo deploy. O que fazer:
   - voltar a correr o `pages.yml` (o `BASE_URL` vem de `github.repository_owner`);
   - mudar a constante `PAGES` em `tina/campos.ts` (dá também o repositório ao alerta de publicação falhada), o `AMEDA_URL` do Seara (`src/index.ts`, com versão nova; ver [ponto 13](#13-do-lado-das-libs)) e os links nas apps;
-  - em https://app.tina.io/ → projeto `AMEDAS` → **Configuration**: **Change Repository** (a app Tina.io tem de estar instalada no novo dono), trocar o Site URL para `https://<owner>.github.io` e **Refresh Webhooks**.
+  - em https://app.tina.io/ → projeto `AMEDAS` → **Configuration**: **Change Repository** (a app do TinaCloud tem de estar instalada no novo dono; ver o ponto seguinte), trocar o Site URL para `https://<owner>.github.io` e, em **Advanced Settings**, **Refresh Webhooks**.
+- **O painel não grava depois de mudar o dono:**
+  - **Sintoma:** ao gravar, *There was a problem saving your document* com `Error in PUT for <ficheiro>: Unable to retrieve bot authentication token`. A mensagem é comprida e fica cortada na caixa preta: faz scroll para a direita para a ler. O Media Manager pode continuar a carregar e a apagar ficheiros (em 2026-11-12 carregou), por isso parece que só a gravação falha.
+  - **Causa:** a app do TinaCloud no GitHub instala-se por conta (pessoal ou organização). A instalação no dono antigo deixa de ter acesso ao repositório transferido, e o TinaCloud fica sem o token da app (o "bot") para fazer os commits. Aconteceu em 2026-11-12, depois da passagem da conta pessoal `ProjectsAV` para a organização `Arva-Vare`, e ficou resolvido no mesmo dia.
+  - **O que fazer:**
+    - Um **owner** do novo dono instala a app com acesso ao `AMEDAS`. Se for um membro a tentar, o GitHub só envia um pedido, que um owner tem de aprovar.
+    - O caminho é https://app.tina.io/ → **Change Repository**: na janela do GitHub, escolhe o novo dono e dá acesso ao `AMEDAS`; depois escolhe `<owner>/AMEDAS` e carrega em **Save Project**.
+    - O owner confirma a instalação em `https://github.com/organizations/<org>/settings/installations`.
+    - Faz também os passos do ponto anterior (Site URL e **Refresh Webhooks**).
 - **Caminhos das imagens:** os campos `image` gravam `/uploads/<ficheiro>`, **sem** `/AMEDAS`. O gerador acrescenta o `BASE_URL`, que só está definido no CI; em local, o `url()` fica relativo. Os JSON copiados para `public/` mantêm o caminho cru, por isso quem os ler tem de juntar a base.
 - **Media Manager:** o URL que mostra é `window.location.origin + src`. Com o painel aberto na porta 4001, o link dá 404, porque as imagens são servidas na 3000.
 
@@ -344,6 +382,7 @@ Com `delete: false`, a opção **Rename** também desaparece; no código do Tina
   - Um nome só com símbolos dá uma string vazia, e o Tina responde *Required*.
   - **Maiúsculas:** `Menu.json` e `menu.json` são ficheiros diferentes no Linux e no Pages (os URLs distinguem maiúsculas), mas colidem num clone em macOS ou Windows. Quem consome tem de pedir o nome exato.
 - **Publicação:** o gerador apaga `public/element/` e recria-o (para refletir ficheiros apagados) e escreve `index.json`, porque o Pages não lista pastas.
+  - Por isso, nas coleções `soJson` (Elementos e Dados), um ficheiro chamado `index.json` (constante `RESERVADO` do `gerar.mjs`) não é publicado, porque a lista o apagaria. Não para o deploy: `avisar()` deixa um aviso para lhe mudar o nome (ver [Alertas ao abrir o painel](#alertas-ao-abrir-o-painel)). O painel não impede o nome: um `match.exclude` com `index` bloquearia o Create New e o Duplicate, mas não o Rename, e esconderia o ficheiro do painel. Por isso só a descrição do nome nos Dados avisa.
 - **`language` em falta:** um `contentBlock` editado fora do painel pode não ter `language`. O painel mostra o seletor com *Escolhe o idioma* e o `idiomasValidos` não deixa gravar; o gerador lança erro.
 - **Acrescentar ou remover um idioma:** muda a constante `IDIOMAS` e o tipo `Language` do Seara (`src/types.ts`), e lança uma versão nova do Seara (ver [ponto 13](#13-do-lado-das-libs)). O seletor do painel e o guia leem o `IDIOMAS`; o gerador não verifica os códigos. Remover um código deixa os elementos que já o usam com um valor que o seletor não mostra; antes de remover, procura `"language": "<código>"` em `conteudo/element/`.
 - **Histórico da forma (2026-10-12 a 2026-10-22), para quem consome:**
@@ -382,6 +421,8 @@ Estados como `:hover` e o sublinhado da página ativa não funcionam com estilos
 
 Os Elementos leem-se com o **Seara** (`~/Documentos/Seara`, repositório privado `Arva-Vare/Seara`, pacote `@arva/seara`), um cliente TypeScript. O `src/types.ts` dele espelha a forma do JSON (`TextContent`, `GroupContent`, `ContentBlock`…). **Ao mudar a forma ou os tipos dos Elementos, atualiza também o Seara** e lança uma versão nova (`npm version minor` e `git push --follow-tags`; o GitHub Action publica a tag `build-vX.Y.Z`). A Arva Webpage (`~/Documentos/Arva Webpage`) usa o Seara.
 
+Os Dados leem-se com `seara.data({ dataName, path? })`, que pede `<url>/data/<dataName>.json` (`DATA_PATH` em `src/index.ts`) e devolve o `DataItem` (`src/types.ts`: `DataItem` e `DataContent`, que espelham a forma de [Dados](#dados-chave-valor)). Em 2026-11-25 o método ainda não estava numa versão publicada do Seara: as alterações estavam por commitar em `~/Documentos/Seara`. **Ao mudar a forma ou a pasta dos Dados, atualiza também o Seara.**
+
 ### 14. Restos no repositório
 - **`conteudo/nav/`:** pasta vazia, criada pelo painel quando ainda era permitido criar pastas. O git ignora-a.
 - **`conteudo/`:** contém dados reais de quem edita. Altera estes ficheiros só quando a tarefa o pede e mantém os valores existentes.
@@ -405,6 +446,17 @@ Os Elementos leem-se com o **Seara** (`~/Documentos/Seara`, repositório privado
 - **Sintoma:** a última publicação falhou e o painel abre sem a janela de erro.
 - **Causa:** a API do GitHub sem token aceita 60 pedidos por hora por IP. Acima disso, sem rede, ou com o `PAGES` a apontar para outro dono (ex.: depois de transferir o repositório sem o mudar), o pedido falha e o `avisos.ts` não avisa, de propósito, para não incomodar.
 - **O que fazer:** confirma o `PAGES` e vê os runs em `https://github.com/<owner>/AMEDAS/actions`.
+
+### 18. Dados
+- **Deploy parado por um ficheiro de Dados:**
+  - **Sintoma:** o run do `pages.yml` falha com `conteudo/data/<ficheiro>.json: a chave "…" está repetida` (ou *há um par sem chave*, *não tem pares*, *o valor da chave … tem de ser texto*).
+  - **Causa:** o JSON foi editado fora do painel (git ou API GraphQL), sem passar pelo `paresValidos`.
+  - **O que fazer:** corrige o ficheiro no painel (marca a vermelho a chave com problema) ou no git. As regras estão em [Dados](#dados-chave-valor).
+- **O Seara não encontra os dados:**
+  - **Sintoma:** `seara.data()` lança *Error trying to connect to …/data/<nome>.json*.
+  - **Causa:** não há ficheiro com esse nome exato (as maiúsculas contam), o ficheiro foi apagado ou mudou de nome (Rename), ou a gravação ainda não chegou ao Pages (2 a 3 minutos, mais até 10 minutos de cache).
+  - **O que fazer:** confirma o nome em `data/index.json`. Mudar o nome de um ficheiro ou de uma chave obriga as apps a mudar também.
+- **Ficheiro `index`:** ver [ponto 9](#9-coleção-elementos), *Publicação*.
 
 ## Pendente
 1. Decidir o mapeamento das cores e dos tamanhos de texto nas libs, por exemplo, o fundo do botão principal = `--color--primary`. A escolha da configuração já está decidida (`data-config`). Não há token para o texto sobre as cores principal, secundária e terciária.

@@ -3,6 +3,7 @@ public/admin
 public/button
 public/tokens
 public/element
+public/data
 tina/__generated__
 .env
 public/index.html

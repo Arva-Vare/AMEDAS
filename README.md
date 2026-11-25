@@ -1,6 +1,6 @@
 # AMEDAS
 
-**Arva Meta Data Storage**: o sítio onde a equipa guarda as cores, os tamanhos de texto, as medidas dos botões, os textos e os ficheiros com link fixo (etiquetas) dos sites da Arva Vare. Edita-se num painel web, sem mexer em código, e o resultado é publicado como CSS e JSON que as apps e as libs leem.
+**Arva Meta Data Storage**: o sítio onde a equipa guarda as cores, os tamanhos de texto, as medidas dos botões, os textos, os dados em pares chave-valor e os ficheiros com link fixo (etiquetas) dos sites da Arva Vare. Edita-se num painel web, sem mexer em código, e o resultado é publicado como CSS e JSON que as apps e as libs leem.
 
 - **Página inicial** (links para tudo o que está publicado): https://arva-vare.github.io/AMEDAS/
 - **Painel** (exige login do TinaCloud): https://arva-vare.github.io/AMEDAS/admin/
@@ -14,7 +14,7 @@
 
 Se a última publicação falhou, o painel abre com uma janela de erro e o link para o GitHub. Os problemas que não param a publicação (ex.: uma etiqueta cujo ficheiro foi apagado) aparecem como avisos amarelos no painel e numa caixa na página inicial.
 
-O painel tem um guia (secção *Site* do menu: **Guia: Começar**, **Cores**, **Tamanhos de texto**, **Botões**, **Elementos** e **Etiquetas**) com os nomes das variáveis e exemplos de código, sempre atualizado com o que está publicado.
+O painel tem um guia (secção *Site* do menu: **Guia: Começar**, **Cores**, **Tamanhos de texto**, **Botões**, **Elementos**, **Dados** e **Etiquetas**) com os nomes das variáveis e exemplos de código, sempre atualizado com o que está publicado.
 
 ## O que é publicado
 
@@ -23,6 +23,7 @@ O painel tem um guia (secção *Site* do menu: **Guia: Começar**, **Cores**, **
 | Tokens | `tokens/tokens.css` | Cores (claro e escuro, por marca) e tamanhos de texto |
 | Botões | `button/button.css` | Medidas dos botões principal, secundário e de navegação |
 | Elementos | `element/<ficheiro>.json` e `element/index.json` | Textos em vários idiomas |
+| Dados | `data/<ficheiro>.json` e `data/index.json` | Pares chave-valor (ex.: o preço de um produto) |
 | Etiquetas | `tag/<etiqueta>.<extensão>` e `tag/index.json` | Ficheiros do Media Manager com um link que não muda |
 | (Media Manager) | `uploads/<ficheiro>` | Todos os ficheiros carregados, com ou sem etiqueta |
 | (gerador) | `avisos.json` | Avisos da última publicação, lidos pelo painel |
@@ -72,6 +73,21 @@ Cada ficheiro de Elementos é uma lista de textos, cada um com um nome e uma ver
 - **Casos vazios:** um ficheiro sem elementos vem como `{}` (trata a falta de `items` como `[]`), e um bloco vazio pode vir sem `content`.
 
 Em TypeScript, o mais simples é usar o cliente [`@arva/seara`](https://github.com/Arva-Vare/Seara) (privado), que já tem os tipos.
+
+### Dados (chave-valor)
+
+Cada ficheiro de Dados é um conjunto de pares chave → valor para informação que não é texto traduzido (ex.: o preço e a referência de um produto). Quem edita cria e apaga quantos ficheiros quiser:
+
+```json
+{ "items": [
+  { "key": "nome",  "value": "Camisola" },
+  { "key": "preco", "value": "20" }
+] }
+```
+
+- **Chaves únicas no ficheiro:** o painel não deixa gravar duas chaves iguais, sem distinguir maiúsculas nem espaços nas pontas (`Preco` e ` preco ` são a mesma). A chave publicada não tem espaços nas pontas.
+- **Valores:** sempre texto (`""` quando vazio); converte-os onde precisares (ex.: `Number(value)`). A ordem dos pares é a do painel, e cada ficheiro tem pelo menos um par.
+- **Com o Seara** (nas versões com o método `data`): `await seara.data({ dataName: "camisola" })` devolve `{ items: [{ key, value }] }` (tipos `DataItem` e `DataContent`). O `dataName` é o nome do ficheiro, sem `.json`.
 
 ### Ficheiros com link fixo (Etiquetas)
 
